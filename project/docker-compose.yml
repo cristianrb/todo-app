@@ -1,0 +1,75 @@
+version: '3'
+
+services:
+
+  broker-service:
+    build:
+      context: ./../broker-service
+      dockerfile: ./../broker-service/broker-service.dockerfile
+    restart: always
+    ports:
+      - "8080:8080"
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      RABBITMQ_USERNAME: "guest"
+      RABBITMQ_PASSWORD: "guest"
+      RABBITMQ_HOST: "rabbitmq"
+      RABBIT_EXCHANGE: "todo_items_exchange"
+      RABBIT_TOPIC: "todo_items_topic"
+
+  record-service:
+    build:
+      context: ./../record-service
+      dockerfile: ./../record-service/record-service.dockerfile
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      MONGO_USERNAME: "admin"
+      MONGO_PASSWORD: "password"
+      MONGO_URL: "mongodb://mongo:27017"
+      DB_NAME: "todo_items"
+      COLLECTION_NAME: "todo_items"
+      RABBITMQ_USERNAME: "guest"
+      RABBITMQ_PASSWORD: "guest"
+      RABBITMQ_HOST: "rabbitmq"
+      RABBIT_EXCHANGE: "todo_items_exchange"
+      RABBIT_TOPIC: "todo_items_topic"
+
+  collector-service:
+    build:
+      context: ./../collector-service
+      dockerfile: ./../collector-service/collector-service.dockerfile
+    restart: always
+    ports:
+      - "8082:8082"
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      RECORD_CLIENT_PROTOCOL: "http"
+      RECORD_CLIENT_HOSTNAME: "record-service:8081"
+
+  rabbitmq:
+    image: 'rabbitmq:3.9-alpine'
+    ports:
+      - "5672:5672"
+    deploy:
+      mode: replicated
+      replicas: 1
+    volumes:
+      - ./db-data/rabbitmq/:/var/lib/rabbitmq/
+
+  mongo:
+    image: 'mongo:4.2.16-bionic'
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: logs
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - ./db-data/mongo/:/data/db
